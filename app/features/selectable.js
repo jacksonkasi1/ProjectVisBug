@@ -19,6 +19,8 @@ import {
   getTextShadowValues, isFixed, onRemove
 } from '../utilities/'
 
+import { ChangeTracker } from './change-tracker'
+
 export function Selectable(visbug) {
   const page              = document.body
   let selected            = []
@@ -111,6 +113,9 @@ export function Selectable(visbug) {
       }))
 
     selected = selected.filter(node => node.getAttribute('data-label-id') !== id)
+    
+    // Stop observing the unselected element
+    ChangeTracker.unobserve(selected.filter(node => node.getAttribute('data-label-id') === id))
 
     tellWatchers()
   }
@@ -118,7 +123,8 @@ export function Selectable(visbug) {
   const on_dblclick = e => {
     e.preventDefault()
     e.stopPropagation()
-    if (isOffBounds(e.target)) return
+    const $target = deepElementFromPoint(e.clientX, e.clientY)
+    if (isOffBounds($target)) return
     visbug.toolSelected('text')
   }
 
@@ -458,6 +464,7 @@ export function Selectable(visbug) {
     })
 
     selected.unshift(el)
+    ChangeTracker.observe(el)
     tellWatchers()
   }
 
@@ -489,6 +496,9 @@ export function Selectable(visbug) {
     labels    = []
     handles   = []
     selected  = []
+
+    // Stop observing all
+    ChangeTracker.unobserve(document.querySelectorAll('*')) // Or better, track observing list inside Selectable if needed, but for now rely on ChangeTracker map cleanup
 
     !silent && tellWatchers()
   }

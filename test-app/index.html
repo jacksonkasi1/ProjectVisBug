@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VisBug Smart Tracking Test</title>
+    <link rel="stylesheet" href="/visbug.css">
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+        line-height: 1.5;
+        background: #f0f4f8;
+      }
+      h1 { color: #2d3748; }
+      .card {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+      }
+      .btn {
+        background: #4299e1;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+      .btn:hover { background: #3182ce; }
+      code {
+        background: #edf2f7;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>VisBug Smart Tracking Demo</h1>
+      <p>This is a test page for the new VisBug "Smart Tracking" features.</p>
+      <p><strong>Instructions:</strong></p>
+      <ol>
+        <li>VisBug is loaded automatically. You should see the toolbar (press <code>/</code> if hidden).</li>
+        <li>Select this text or any element.</li>
+        <li>Change its color or typography using VisBug tools.</li>
+        <li>Observe the neon "Changes" badge appear in the overlay.</li>
+        <li>Press <code>Cmd+Z</code> to Undo, <code>Cmd+Shift+Z</code> to Redo.</li>
+        <li>Click the badge to copy the code report.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Editable Element</h2>
+      <button class="btn">I am a button</button>
+      <p style="margin-top: 1rem; color: #718096;">Try changing my margins!</p>
+    </div>
+
+    <!-- Inject VisBug -->
+    <link rel="stylesheet" href="/react-grab.css">
+    <script src="/react-grab.js"></script>
+    <script type="module" src="/visbug.js"></script>
+    <script type="module">
+      // Initialize VisBug (simulate extension injection)
+      const visbug = document.createElement('vis-bug');
+      document.body.appendChild(visbug);
+    </script>
+  </body>
+</html>

@@ -9,7 +9,8 @@ import {
 import {
   Selectable, Moveable, Padding, Margin, EditText, Font,
   Flex, Search, ColorPicker, BoxShadow, HueShift, MetaTip,
-  Guides, Screenshot, Position, Accessibility, draggable
+  Guides, Screenshot, Position, Accessibility, draggable, VisBugCopy,
+  ChangeTracker, PropertyInspector
 } from '../../features/'
 
 import {
@@ -34,6 +35,7 @@ export default class VisBug extends HTMLElement {
     super()
 
     this.toolbar_model  = VisBugModel
+    this.active_tool    = 'move'
     this.$shadow        = this.attachShadow({mode: 'closed'})
     this.applyScheme    = schemeRule(
       this.$shadow,
@@ -52,13 +54,19 @@ export default class VisBug extends HTMLElement {
 
     this.selectorEngine = Selectable(this)
     this.colorPicker    = ColorPicker(this.$shadow, this.selectorEngine)
+    this.visBugCopyCleanup = VisBugCopy(this.selectorEngine)
 
     provideSelectorEngine(this.selectorEngine)
 
-    this.toolSelected($('[data-tool="guides"]', this.$shadow)[0])
+    if (this.propertyInspector && this.propertyInspector.setSelectorEngine) {
+      this.propertyInspector.setSelectorEngine(this.selectorEngine)
+    }
+
+    this.move()
   }
 
   disconnectedCallback() {
+    this.visBugCopyCleanup && this.visBugCopyCleanup()
     this.deactivate_feature()
     this.cleanup()
     this.selectorEngine.disconnect()
@@ -87,48 +95,35 @@ export default class VisBug extends HTMLElement {
     this.setAttribute('popover', 'manual')
     this.showPopover && this.showPopover()
 
-    const main_ol = this.$shadow.querySelector('ol:not([colors])')
-    const buttonPieces = $('li[data-tool], li[data-tool] *', main_ol)
-
-    const clickEvent = (e) => {
-      const target = e.currentTarget || e.target
-      const toolButton = target.closest('[data-tool]')
-      if (toolButton) this.toolSelected(toolButton) && e.stopPropagation();
-    }
-
-    Array.from(buttonPieces)
-    .forEach(toolButton => {
-      draggable({
-        el:this,
-        surface: toolButton,
-        cursor: 'pointer',
-        clickEvent: clickEvent
-      })
+    hotkeys(`${metaKey}+z`, e => {
+      e.preventDefault()
+      ChangeTracker.undo()
+    })
+    hotkeys(`${metaKey}+shift+z`, e => {
+      e.preventDefault()
+      ChangeTracker.redo()
     })
 
-    draggable({
-      el:this,
-      surface: main_ol,
-      cursor: 'grab',
-    })
-
-    Object.entries(this.toolbar_model).forEach(([key, value]) =>
-      hotkeys(key, e => {
-        e.preventDefault()
-        this.toolSelected(
-          $(`[data-tool="${value.tool}"]`, this.$shadow)[0]
-        )
-      })
-    )
-
-    hotkeys(`${metaKey}+/,${metaKey}+.`, e =>
+    hotkeys(`${metaKey}+/,${metaKey}+.`, e => {
+      // Toggle toolbar
       this.$shadow.host.style.display =
         this.$shadow.host.style.display === 'none'
           ? 'block'
-          : 'none')
+          : 'none'
+      
+      // Also notify PropertyInspector
+      if (this.propertyInspector) {
+        this.propertyInspector.style.display = this.$shadow.host.style.display
+      }
+    })
+
+    // Mount Property Inspector to Body (to avoid Shadow DOM transform constraints)
+    this.propertyInspector = document.createElement('property-inspector')
+    document.body.appendChild(this.propertyInspector)
   }
 
   cleanup() {
+    this.propertyInspector && this.propertyInspector.remove()
     this.hidePopover && this.hidePopover()
 
     Array.from(document.body.children)
@@ -142,70 +137,56 @@ export default class VisBug extends HTMLElement {
         el.removeAttribute('data-pseudo-select'))
   }
 
+  onHistoryUpdate({detail}) {
+  }
+
   toolSelected(el) {
-    if (typeof el === 'string')
-      el = $(`[data-tool="${el}"]`, this.$shadow)[0]
-
-    if (this.active_tool && this.active_tool.dataset.tool === el.dataset.tool) return
-
-    if (this.active_tool) {
-      this.active_tool.attr('data-active', null)
-      this.deactivate_feature()
+    let toolName = el
+    
+    if (typeof el === 'string') {
+      const toolEl = $(`[data-tool="${el}"]`, this.$shadow)[0]
+      if (toolEl) {
+        el = toolEl
+        toolName = el.dataset.tool
+      }
+    } else if (el && el.dataset) {
+      toolName = el.dataset.tool
     }
 
-    el.attr('data-active', true)
-    this.active_tool = el
-    this[el.dataset.tool]()
+    if (this.active_tool === toolName || (this.active_tool && this.active_tool.dataset && this.active_tool.dataset.tool === toolName)) {
+      return
+    }
+
+    if (this.active_tool && this.active_tool.attr) {
+      this.active_tool.attr('data-active', null)
+    }
+    
+    this.deactivate_feature && this.deactivate_feature()
+
+    if (el && el.attr) {
+      el.attr('data-active', true)
+      this.active_tool = el
+    } else {
+      this.active_tool = toolName
+    }
+    
+    if (this[toolName]) {
+      this[toolName]()
+    }
   }
 
   render() {
     return `
       <visbug-hotkeys></visbug-hotkeys>
-      <ol constructible-support="${constructibleStylesheetSupport ? 'false':'true'}">
-        ${Object.entries(this.toolbar_model).reduce((list, [key, tool]) => `
-          ${list}
-          <li aria-label="${tool.label} Tool" aria-description="${tool.description}" aria-hotkey="${key}" data-tool="${tool.tool}" data-active="${key == 'g'}">
-            ${tool.icon}
-            ${this.demoTip({key, ...tool})}
-          </li>
-        `,'')}
-      </ol>
-      <ol colors>
-        <li class="color" id="foreground" aria-label="Text" aria-description="Change the text color">
-          <input type="color">
-          ${Icons.color_text}
-        </li>
-        <li class="color" id="background" aria-label="Background or Fill" aria-description="Change the background color or fill of svg">
-          <input type="color">
-          ${Icons.color_background}
-        </li>
-        <li class="color" id="border" aria-label="Border or Stroke" aria-description="Change the border color or stroke of svg">
-          <input type="color">
-          ${Icons.color_border}
-        </li>
-      </ol>
     `
   }
 
   demoTip({key, tool, label, description, instruction}) {
-    return `
-      <aside ${tool}>
-        <figure>
-          <img src="${this._tutsBaseURL}/${tool}.gif" alt="${description}" />
-          <figcaption>
-            <h2>
-              ${label}
-              <span hotkey>${key}</span>
-            </h2>
-            <p>${description}</p>
-            ${instruction}
-          </figcaption>
-        </figure>
-      </aside>
-    `
+    return ''
   }
 
   move() {
+    this.active_tool = 'move'
     this.deactivate_feature = Moveable(this.selectorEngine)
   }
 
@@ -284,7 +265,11 @@ export default class VisBug extends HTMLElement {
   }
 
   get activeTool() {
-    return this.active_tool.dataset.tool
+    // Support both toolbar mode (active_tool element) and headless mode (active_tool string)
+    if (this.active_tool && this.active_tool.dataset) {
+      return this.active_tool.dataset.tool
+    }
+    return this.active_tool || 'move'
   }
 }
 

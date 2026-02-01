@@ -14,4 +14,8 @@ export { Guides } from './guides'
 export { Screenshot } from './screenshot'
 export { Position, draggable } from './position'
 export { Accessibility } from './accessibility'
+export { default as VisBugCopy } from './visbug-copy'
+export { ChangeTracker } from './change-tracker'
+export { ChangesToolbar } from './changes-toolbar'
+export { PropertyInspector } from './property-inspector/index.js'
 

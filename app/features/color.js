@@ -12,6 +12,22 @@ export function ColorPicker(pallete, selectorEngine) {
   const foregroundPicker  = $('#foreground', pallete)
   const backgroundPicker  = $('#background', pallete)
   const borderPicker      = $('#border', pallete)
+  
+  const hasColorPickers = foregroundPicker.length && backgroundPicker.length && borderPicker.length
+  
+  if (!hasColorPickers) {
+    selectorEngine.onSelectedUpdate(elements => {
+      state.elements = elements
+    })
+    
+    return {
+      getActive: () => state.active_color,
+      setActive: () => {},
+      foreground: { color: () => {} },
+      background: { color: () => {} }
+    }
+  }
+  
   const fgInput           = $('input', foregroundPicker[0])
   const bgInput           = $('input', backgroundPicker[0])
   const boInput           = $('input', borderPicker[0])

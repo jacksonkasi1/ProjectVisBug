@@ -78,18 +78,38 @@ export const htmlStringToDom = (htmlString = "") =>
   (new DOMParser().parseFromString(htmlString, 'text/html'))
     .body.firstChild
 
-export const isOffBounds = node =>
-  node.closest && (
-       node.closest('vis-bug')
-    || node.closest('hotkey-map')
-    || node.closest('visbug-metatip')
-    || node.closest('visbug-ally')
-    || node.closest('visbug-label')
-    || node.closest('visbug-handles')
-    || node.closest('visbug-corners')
-    || node.closest('visbug-grip')
-    || node.closest('visbug-gridlines')
+export const isOffBounds = node => {
+  if (!node || !node.closest) return false
+  
+  if (node.closest('[data-visbug-ignore]') || node.closest('.visbug-ignore')) return true
+
+  const checkNode = n => (
+       n.closest('vis-bug')
+    || n.closest('hotkey-map')
+    || n.closest('visbug-metatip')
+    || n.closest('visbug-ally')
+    || n.closest('visbug-label')
+    || n.closest('visbug-handles')
+    || n.closest('visbug-corners')
+    || n.closest('visbug-grip')
+    || n.closest('visbug-gridlines')
+    || n.closest('property-inspector')
   )
+  
+  if (checkNode(node)) return true
+  
+  let root = node.getRootNode()
+  while (root && root !== document) {
+    if (root.host) {
+      if (checkNode(root.host)) return true
+      root = root.host.getRootNode()
+    } else {
+      break
+    }
+  }
+  
+  return false
+}
 
 export const isSelectorValid = (qs => (
   selector => {
